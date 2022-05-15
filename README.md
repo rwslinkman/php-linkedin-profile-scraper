@@ -1,7 +1,7 @@
 # PHP LinkedIn Profile Scraper
 Scraper tool to fetch public LinkedIn profile data and convert it to PHP data objects
 
-###Disclaimer: This tool is used for personal data logging. Not intended to harvest other people's data.
+### Disclaimer: This tool is used for personal data logging. Not intended to harvest other people's data.
 
 Uses `symfony/panther` to manipulate browser into visiting LinkedIn page of `$targetProfile` user.    
 Full example can be found in `index.php`.   
