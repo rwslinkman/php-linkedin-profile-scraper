@@ -15,24 +15,44 @@ class LinkedInProfileScraper
 {
     private const LINKEDIN_PUBLIC_PROFILE_URL = "https://www.linkedin.com";
 
+    private bool $useHeadlessBrowser;
+    private string $scrapeAsUsername;
+    private string $scrapeAsPassword;
+    private string $outputDirectory;
+    private string $userAgent;
+
+    /**
+     * @param bool $useHeadlessBrowser
+     * @param string $scrapeAsUsername
+     * @param string $scrapeAsPassword
+     * @param string $outputDirectory
+     * @param string $userAgent
+     */
+    public function __construct(string $scrapeAsUsername, string $scrapeAsPassword, bool $useHeadlessBrowser = true, string $outputDirectory = "out", string $userAgent = "chrome")
+    {
+        $this->useHeadlessBrowser = $useHeadlessBrowser;
+        $this->scrapeAsUsername = $scrapeAsUsername;
+        $this->scrapeAsPassword = $scrapeAsPassword;
+        $this->outputDirectory = $outputDirectory;
+        $this->userAgent = $userAgent;
+    }
+
+
     /**
      * @param string $username
-     * @param bool $useHeadless
      * @return array
      * @throws NoSuchElementException
      * @throws TimeoutException
      */
-    public function scrape(string $username = "rwslinkman", bool $useHeadless = false): array
+    public function scrape(string $username): array
     {
         $endpoint = self::LINKEDIN_PUBLIC_PROFILE_URL . "/in/$username/details/experience/";
-        if ($useHeadless) {
+        if ($this->useHeadlessBrowser) {
             $client = Client::createChromeClient();
         } else {
-            $userAgent = "chrome";
-            $options = [
-                "--user-agent=$userAgent"
-            ];
-            $client = Client::createChromeClient(null, $options);
+            $client = Client::createChromeClient(null, [
+                "--user-agent=$this->userAgent"
+            ]);
         }
 
         $isLoginSuccess = $this->linkedinLogin($client);
@@ -93,14 +113,14 @@ class LinkedInProfileScraper
             $client->request("GET", $loginEndpoint);
             $loginCrawler = $client->waitForVisibility("#username");
             $loginForm = $loginCrawler->selectButton("Sign in")->form([
-                "session_key" => "your-email-here",
-                "session_password" => "your-password-here"
+                "session_key" => $this->scrapeAsUsername,
+                "session_password" => $this->scrapeAsPassword
             ]);
             $client->submit($loginForm);
             $client->waitForVisibility('.authentication-outlet');
             return true;
         } catch(Exception) {
-            $client->takeScreenshot('out/scraper-login-error.png');
+            $client->takeScreenshot($this->outputDirectory.'/scraper-login-error.png');
             return false;
         }
     }

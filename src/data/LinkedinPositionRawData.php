@@ -5,16 +5,16 @@ class LinkedinPositionRawData
 {
     private string $title;
     private string $company;
-    private string $location;
+    private string|null $location;
     private string $timeSpent;
 
     /**
      * @param string $title
      * @param string $company
-     * @param string $location
+     * @param string|null $location
      * @param string $timeSpent
      */
-    public function __construct(string $title, string $company, string $location, string $timeSpent)
+    public function __construct(string $title, string $company, string|null $location, string $timeSpent)
     {
         $this->title = $title;
         $this->company = $company;
@@ -55,9 +55,9 @@ class LinkedinPositionRawData
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getLocation(): string
+    public function getLocation(): string|null
     {
         return $this->location;
     }

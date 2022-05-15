@@ -6,7 +6,7 @@ class LinkedinPositionData
 {
     private string $jobTitle;
     private string $company;
-    private string $location;
+    private string|null $location;
     private string $jobStartedAt;
     private string $jobEndedAt;
     private string $duration;
@@ -14,12 +14,12 @@ class LinkedinPositionData
     /**
      * @param string $jobTitle
      * @param string $company
-     * @param string $location
+     * @param string|null $location
      * @param string $jobStartedAt
      * @param string $jobEndedAt
      * @param string $duration
      */
-    public function __construct(string $jobTitle, string $company, string $location, string $jobStartedAt, string $jobEndedAt, string $duration)
+    public function __construct(string $jobTitle, string $company, string|null $location, string $jobStartedAt, string $jobEndedAt, string $duration)
     {
         $this->jobTitle = $jobTitle;
         $this->company = $company;
@@ -62,9 +62,9 @@ class LinkedinPositionData
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getLocation(): string
+    public function getLocation(): string|null
     {
         return $this->location;
     }
