@@ -1,0 +1,22 @@
+{
+    "name": "rwslinkman/php-linkedin-profile-scraper",
+    "description": "Scraper tool to fetch public LinkedIn profile data and convert it to PHP data objects",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "rwslinkman\\linkedinprofilescraper\\": "src/"
+        }
+    },
+    "require": {
+        "symfony/panther": "^2.0"
+    },
+    "authors": [
+        {
+            "name": "Rick Slinkman",
+            "email": "rw.slinkman@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "dbrekelmans/bdi": "^1.0"
+    }
+}
