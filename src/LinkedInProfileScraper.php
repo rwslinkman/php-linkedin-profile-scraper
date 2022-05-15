@@ -8,6 +8,9 @@ use rwslinkman\linkedinprofilescraper\data\LinkedinPositionData;
 use rwslinkman\linkedinprofilescraper\data\LinkedinPositionRawData;
 use rwslinkman\linkedinprofilescraper\data\manipulation\DataCleaner;
 use rwslinkman\linkedinprofilescraper\data\manipulation\DataMapper;
+use rwslinkman\linkedinprofilescraper\exception\CrawlingException;
+use rwslinkman\linkedinprofilescraper\exception\HttpTimeoutException;
+use rwslinkman\linkedinprofilescraper\exception\LoginException;
 use Symfony\Component\Panther\Client;
 use Symfony\Component\Panther\DomCrawler\Crawler;
 
@@ -37,12 +40,12 @@ class LinkedInProfileScraper
         $this->userAgent = $userAgent;
     }
 
-
     /**
      * @param string $username
      * @return array
-     * @throws NoSuchElementException
-     * @throws TimeoutException
+     * @throws LoginException
+     * @throws CrawlingException
+     * @throws HttpTimeoutException
      */
     public function scrape(string $username): array
     {
@@ -55,58 +58,65 @@ class LinkedInProfileScraper
             ]);
         }
 
-        $isLoginSuccess = $this->linkedinLogin($client);
-        if(!$isLoginSuccess) return array();
+        $this->linkedinLogin($client);
 
-        $client->request("GET", $endpoint);
-        $profileCrawler = $client->waitForVisibility("#main ul.pvs-list");
+        try {
+            $client->request("GET", $endpoint);
+            $profileCrawler = $client->waitForVisibility("#main ul.pvs-list");
 
-        $rawScrapeResults = $profileCrawler->filter("#main ul.pvs-list")->children()->each(function(Crawler $node) {
-            // determine type
-            $subWorkItems = $node->filter("ul.pvs-list li ul.pvs-list div.pvs-entity");
-            $isComposite = $subWorkItems->count() > 0;
-            // convert to raw data objects
-            $convertResult = array();
-            if($isComposite) {
-                // Multiple jobs at same employer
-                $compositeResults = DataMapper::mapComposite($node);
-                foreach($compositeResults as $singleResult) {
-                    $convertResult[] = $singleResult;
+            $rawScrapeResults = $profileCrawler->filter("#main ul.pvs-list")->children()->each(function (Crawler $node) {
+                // determine type
+                $subWorkItems = $node->filter("ul.pvs-list li ul.pvs-list div.pvs-entity");
+                $isComposite = $subWorkItems->count() > 0;
+                // convert to raw data objects
+                $convertResult = array();
+                if ($isComposite) {
+                    // Multiple jobs at same employer
+                    $compositeResults = DataMapper::mapComposite($node);
+                    foreach ($compositeResults as $singleResult) {
+                        $convertResult[] = $singleResult;
+                    }
+                } else {
+                    // Single employment
+                    $singleResult = DataMapper::mapRegular($node);
+                    if ($singleResult != null) {
+                        $convertResult[] = $singleResult;
+                    }
                 }
-            } else {
-                // Single employment
-                $singleResult = DataMapper::mapRegular($node);
-                if($singleResult != null) {
-                    $convertResult[] = $singleResult;
-                }
+                return $convertResult[0];
+            });
+
+            $cleanResults = array();
+            /** @var LinkedinPositionRawData $rawResult */
+            foreach ($rawScrapeResults as $rawResult) {
+                $jobStart = DataCleaner::splitTimeSpentForJobStart($rawResult->getTimeSpent());
+                $jobEnd = DataCleaner::splitTimeSpentForJobEnd($rawResult->getTimeSpent());
+                $duration = DataCleaner::splitTimeSpentForDuration($rawResult->getTimeSpent());
+                $cleanCompany = DataCleaner::cleanCompanyExtras($rawResult->getCompany());
+                $cleanResults[] = new LinkedinPositionData(
+                    $rawResult->getTitle(),
+                    $cleanCompany,
+                    $rawResult->getLocation(),
+                    $jobStart,
+                    $jobEnd,
+                    $duration
+                );
             }
-            return $convertResult[0];
-        });
-
-        $cleanResults = array();
-        /** @var LinkedinPositionRawData $rawResult */
-        foreach($rawScrapeResults as $rawResult) {
-            $jobStart = DataCleaner::splitTimeSpentForJobStart($rawResult->getTimeSpent());
-            $jobEnd = DataCleaner::splitTimeSpentForJobEnd($rawResult->getTimeSpent());
-            $duration = DataCleaner::splitTimeSpentForDuration($rawResult->getTimeSpent());
-            $cleanCompany = DataCleaner::cleanCompanyExtras($rawResult->getCompany());
-            $cleanResults[] = new LinkedinPositionData(
-                $rawResult->getTitle(),
-                $cleanCompany,
-                $rawResult->getLocation(),
-                $jobStart,
-                $jobEnd,
-                $duration
-            );
+            return $cleanResults;
+        } catch (NoSuchElementException) {
+            $screenshotLocation = $this->outputDirectory . '/scraper-parsing-error.png';
+            $client->takeScreenshot($screenshotLocation);
+            throw new CrawlingException("Unable to find expected data elements", $screenshotLocation);
+        } catch (TimeoutException) {
+            throw new HttpTimeoutException();
         }
-        return $cleanResults;
     }
 
     /**
      * @param Client $client
-     * @return bool
+     * @throws LoginException
      */
-    private function linkedinLogin(Client $client): bool
+    private function linkedinLogin(Client $client)
     {
         try {
             $loginEndpoint = self::LINKEDIN_PUBLIC_PROFILE_URL . "/checkpoint/lg/login";
@@ -118,10 +128,10 @@ class LinkedInProfileScraper
             ]);
             $client->submit($loginForm);
             $client->waitForVisibility('.authentication-outlet');
-            return true;
-        } catch(Exception) {
-            $client->takeScreenshot($this->outputDirectory.'/scraper-login-error.png');
-            return false;
+        } catch (Exception) {
+            $screenshotLocation = $this->outputDirectory . '/scraper-login-error.png';
+            $client->takeScreenshot($screenshotLocation);
+            throw new LoginException("Unable to login at LinkedIn. Screenshot is available", $screenshotLocation);
         }
     }
 }

@@ -20,3 +20,10 @@ foreach($results as $result) {
     echo "$targetProfile worked at $c as $p from $s to $e ($d)".PHP_EOL;
 }
 ```
+
+The `scrape` function may throw exceptions in case of problems:   
+- `LoginException` when provided credentials do not lead to a valid login with LinkedIn.
+  - This exception also occurs when a CAPTCHA gate is met
+  - CAPTCHA gates can be passed when setting the `$useHeadlessBrowser` parameter to `false`.
+- `HttpTimeoutException` when the page of the `$targetProfile` cannot be reached
+- `CrawlingException` when the scraper did not find the data in the expected locations.
